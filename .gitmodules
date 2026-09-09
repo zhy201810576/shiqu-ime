@@ -1,0 +1,3 @@
+[submodule "fcitx5-android"]
+	path = fcitx5-android
+	url = https://github.com/zhy201810576/fcitx5-android
