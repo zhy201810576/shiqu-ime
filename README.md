@@ -33,6 +33,7 @@ fcitx5-android 是 C++ 源码编译项目，需在 Linux/WSL2 构建：
 # WSL 内需：JDK 21、Android SDK（NDK 28.0.13004108 / CMake 3.31.6 / platform-36 / build-tools 36.x）
 # 额外系统依赖：extra-cmake-modules gettext pkg-config
 cd fcitx5-android
+bash download-models.sh   # 首次构建前先下载语音模型 + 万象词库（约 600MB，未进 git）
 ./gradlew :app:assembleDebug -PbuildABI=x86_64   # 模拟器 x86_64；真机换 arm64-v8a
 # 产物：app/build/outputs/apk/debug/org.fcitx.fcitx5.android-*-x86_64-debug.apk
 ```
