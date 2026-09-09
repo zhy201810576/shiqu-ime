@@ -152,16 +152,14 @@ fork fcitx5-android 集成已完成主线目标，剩余：
 
 ## 许可与第三方声明
 
-本仓库是 fcitx5-android 的 fork，继承其 **LGPL-2.1** 许可，源码随本仓库提供；MemeBoard 新增代码同样按 LGPL-2.1 发布。
+本仓库是 fcitx5-android 的 fork，继承其 **LGPL-2.1** 许可，源码随本仓库提供；拾趣输入法新增代码同样按 LGPL-2.1 发布。
 
-集成的第三方引擎 / 模型及其授权边界（开源发布前需留意）：
+集成的第三方引擎 / 模型及其授权边界：
 
 | 组件 | 来源 | 许可 | 说明 |
 | --- | --- | --- | --- |
 | fcitx5-android | 上游 fork | LGPL-2.1 | 输入法框架本体 |
 | 万象拼音方案 | rime-wanxiang | CC BY 4.0（需署名） | 拼音词库 + 语言模型 |
-| 语燕手写（gpen） | 语燕输入法 | BSD-3 外壳，**内含讯飞 `libgpen_handwriter.so` + 搜狗中文模型（专有，仅 arm64-v8a）** | 手写识别；闭源 so 需单独说明来源与授权边界，不得随 LGPL 源码无声明再分发 |
-| 语音（asr-bridge） | sherpa-onnx + SenseVoice | 见各模型自身许可 | 离线语音识别 |
-| BiBi「说点啥」 | 第三方独立 APP | Apache 2.0（AIDL 协议） | 语音桥接，非本仓库内置 |
-
-> 专有组件（讯飞 gpen so、搜狗模型）不属于 LGPL 范围，对外分发时需在分发物中明确其来源与授权边界；本仓库默认**不内置**这些专有二进制，仅保留调用外壳与集成说明。
+| 手写识别 | Google ML Kit Digital Ink | ML Kit 条款（依赖 GMS） | 中日双语手写 |
+| 语音识别 | sherpa-onnx + SenseVoice | Apache-2.0 | 进程内离线语音，模型未进 git（download-models.sh 下载） |
+| 波形控件 | jaygoo WaveLineView | Apache-2.0 | 录音波形动画 |
