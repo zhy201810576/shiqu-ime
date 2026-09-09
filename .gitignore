@@ -1,0 +1,46 @@
+# ============================================================
+# MemeBoard 开源仓库 .gitignore
+# ============================================================
+
+# ---------- 安全：签名密钥（严禁入库，否则签名密钥公开）----------
+keystore/
+*.keystore
+*.jks
+
+# ---------- 合规：专有二进制 / 第三方逆向产物（严禁入库）----------
+# gpen-bridge 含讯飞 libgpen_handwriter.so、搜狗 libSogouShell.so、
+# 搜狗手写模型及语燕 license 授权文件，均为专有，不得随 LGPL 源码分发
+gpen-bridge/
+# 第三方输入法解包参考（逆向产物）
+.ref/
+# WSL 调试脚本 / 日志 / dump / 解包源码 / 模型
+.wsl/
+
+# ---------- 本地环境配置 ----------
+local.properties
+
+# ---------- 构建产物（APK 走 GitHub Releases，不进 git）----------
+dist/
+build/
+.gradle/
+.kotlin/
+
+# ---------- 日志与调试 ----------
+*.log
+*.dump
+*.mp3
+
+# ---------- IDE / 工具 ----------
+.idea/
+.dsh-assets/
+.DS_Store
+
+# ---------- 根目录调试素材（如需保留请移入 docs/ 后删除对应行）----------
+微信图片_*.png
+微信图片_*.jpg
+主题设计参考.png
+AquaBlush*.png
+AquaBlush*.zip
+AquaBlush*.json
+screen1.png
+screen4.png
