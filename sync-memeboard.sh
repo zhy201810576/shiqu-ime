@@ -4,8 +4,15 @@ SRC=/mnt/e/APP-Project/memeboard/fcitx5-android
 DST=/root/fcitx5-android
 cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/memeboard/*.kt \
       "$DST"/app/src/main/java/org/fcitx/fcitx5/android/memeboard/
+# GIF 重编码器（NeuQuant / LZW / AnimatedGifEncoder）
+mkdir -p "$DST"/app/src/main/java/org/fcitx/fcitx5/android/memeboard/gif
+cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/memeboard/gif/*.kt \
+      "$DST"/app/src/main/java/org/fcitx/fcitx5/android/memeboard/gif/
 cp -f "$SRC"/app/src/test/java/org/fcitx/fcitx5/android/memeboard/*.kt \
       "$DST"/app/src/test/java/org/fcitx/fcitx5/android/memeboard/
+# 依赖目录与 app 依赖声明（android-gif-drawable）
+cp -f "$SRC"/gradle/libs.versions.toml "$DST"/gradle/libs.versions.toml
+cp -f "$SRC"/app/build.gradle.kts "$DST"/app/build.gradle.kts
 # 语音引擎（进程内 SpeechEngine + 控制器，取代旧桥接预热器）
 cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/link/AsrEngineController.kt \
       "$DST"/app/src/main/java/org/fcitx/fcitx5/android/link/AsrEngineController.kt
