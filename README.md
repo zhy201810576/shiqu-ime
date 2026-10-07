@@ -160,6 +160,7 @@ fork fcitx5-android 集成已完成主线目标，剩余：
 | --- | --- | --- | --- |
 | fcitx5-android | 上游 fork | LGPL-2.1 | 输入法框架本体 |
 | 万象拼音方案 | rime-wanxiang | CC BY 4.0（需署名） | 拼音词库 + 语言模型 |
+| 雾凙拼音方案 | rime-ice | GPL-3.0 | 全拼拼音词库（网络热词，按月更新） |
 | 手写识别 | Google ML Kit Digital Ink | ML Kit 条款（依赖 GMS） | 中日双语手写 |
-| 语音识别 | sherpa-onnx + SenseVoice | Apache-2.0 | 进程内离线语音，模型未进 git（download-models.sh 下载） |
+| 语音识别 | sherpa-onnx + Paraformer | Apache-2.0 | 进程内离线语音，模型未进 git（download-models.sh 下载） |
 | 波形控件 | jaygoo WaveLineView | Apache-2.0 | 录音波形动画 |

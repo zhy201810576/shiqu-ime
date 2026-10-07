@@ -17,6 +17,8 @@ rm -f "$DST"/app/src/main/java/org/fcitx/fcitx5/android/link/AsrkbExternalInputS
 rm -f "$DST"/app/src/main/java/org/fcitx/fcitx5/android/link/BridgePrewarmer.kt
 rm -rf "$DST"/app/src/main/aidl
 rm -rf "$DST"/app/src/main/java/com
+# 旧 SenseVoice 模型已切换到 Paraformer，删除工作副本残留（rsync 增量同步不会删）
+rm -rf "$DST"/plugin/asr/src/main/assets/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17
 
 # ---- 目录级 rsync（新增目录 + 多文件目录，自动带新增/覆盖修改）----
 for d in \
@@ -92,6 +94,12 @@ cp -f "$SRC"/app/src/test/java/org/fcitx/fcitx5/android/ThemeSerializationTest.k
 # rime 插件（release 也要打）
 cp -f "$SRC"/plugin/rime/src/main/cpp/CMakeLists.txt              "$DST"/plugin/rime/src/main/cpp/CMakeLists.txt
 cp -f "$SRC"/plugin/rime/src/main/cpp/default.yaml                "$DST"/plugin/rime/src/main/cpp/default.yaml
+# 雾凙拼音 rime-ice（GPL-3.0）—— 新增方案 + 词库 + opencc 自定义数据（rsync 增量同步）
+mkdir -p "$DST"/plugin/rime/src/main/cpp/rime-ice
+rsync -a "$SRC"/plugin/rime/src/main/cpp/rime-ice/ "$DST"/plugin/rime/src/main/cpp/rime-ice/
+# 主 app CMakeLists（新增 rime-ice opencc 数据安装到 usr/share/opencc）
+cp -f "$SRC"/app/src/main/cpp/CMakeLists.txt                      "$DST"/app/src/main/cpp/CMakeLists.txt
+cp -f "$SRC"/app/src/main/cpp/native-lib.cpp                      "$DST"/app/src/main/cpp/native-lib.cpp
 cp -f "$SRC"/lib/plugin-base/src/debug/AndroidManifest.xml        "$DST"/lib/plugin-base/src/debug/AndroidManifest.xml
 
 # asr 语音模型插件（进程内引擎读它的 assets；模型用 rsync 增量同步）
@@ -103,8 +111,7 @@ cp -f "$SRC"/plugin/asr/src/main/res/values/strings.xml           "$DST"/plugin/
 cp -f "$SRC"/plugin/asr/src/main/res/values-zh-rCN/strings.xml    "$DST"/plugin/asr/src/main/res/values-zh-rCN/strings.xml
 cp -f "$SRC"/plugin/asr/src/main/assets/descriptor.json           "$DST"/plugin/asr/src/main/assets/descriptor.json
 mkdir -p "$DST"/plugin/asr/src/main/assets
-rsync -a "$SRC"/plugin/asr/src/main/assets/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17/" \
-      "$DST"/plugin/asr/src/main/assets/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17/"
+rsync -a "$SRC"/plugin/asr/src/main/assets/sherpa-onnx-paraformer-zh-2024-03-09/ "$DST"/plugin/asr/src/main/assets/sherpa-onnx-paraformer-zh-2024-03-09/
 
 # 应用图标：桥接入口剪影 + 贴纸风 launcher（含删除 adaptive XML 回退 legacy PNG）
 for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do

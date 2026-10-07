@@ -10,6 +10,14 @@ cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/memeboard/gif/*.kt \
       "$DST"/app/src/main/java/org/fcitx/fcitx5/android/memeboard/gif/
 cp -f "$SRC"/app/src/test/java/org/fcitx/fcitx5/android/memeboard/*.kt \
       "$DST"/app/src/test/java/org/fcitx/fcitx5/android/memeboard/
+# 符号面板新增分类图标（片假名 / 平假名 drawable vector）
+cp -f "$SRC"/app/src/main/res/drawable/symbol_katakana.xml \
+      "$DST"/app/src/main/res/drawable/symbol_katakana.xml
+cp -f "$SRC"/app/src/main/res/drawable/symbol_hiragana.xml \
+      "$DST"/app/src/main/res/drawable/symbol_hiragana.xml
+# PickerData（符号/颜文字数据）
+cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/input/picker/PickerData.kt \
+      "$DST"/app/src/main/java/org/fcitx/fcitx5/android/input/picker/PickerData.kt
 # 依赖目录与 app 依赖声明（android-gif-drawable）
 cp -f "$SRC"/gradle/libs.versions.toml "$DST"/gradle/libs.versions.toml
 cp -f "$SRC"/app/build.gradle.kts "$DST"/app/build.gradle.kts

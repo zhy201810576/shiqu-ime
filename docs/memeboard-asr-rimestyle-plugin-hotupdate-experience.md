@@ -3,6 +3,8 @@
 > 适用场景：fcitx5-android（拾趣输入法）语音输入从「独立跨进程桥」改造为「进程内引擎 + 模型插件」，并支持在线检测更新 / 下载新语音模型。
 > 关键结论：引擎内嵌输入法进程后，彻底摆脱小米 HyperOS 的链式启动 / 自启动 / 省电保活限制；语音随用随起、零保活配置。
 
+> ⚠️ 注：2026-10 起「模型热更新（AsrModelManager）」已移除（实际无用），识别引擎也由 SenseVoice 切换为 Paraformer（`sherpa-onnx-paraformer-zh-2024-03-09`），模型固定从插件 assets 加载。下文关于热更新与 SenseVoice 的描述仅作历史记录。
+
 ## 一、背景与目标
 
 - 原方案：语音引擎跑在独立 `asr-bridge` APK，输入法通过 `bindService` + AIDL 跨进程调用。
