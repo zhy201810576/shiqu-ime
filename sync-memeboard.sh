@@ -26,6 +26,12 @@ cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/link/AsrEngineController
       "$DST"/app/src/main/java/org/fcitx/fcitx5/android/link/AsrEngineController.kt
 cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/link/SpeechEngine.kt \
       "$DST"/app/src/main/java/org/fcitx/fcitx5/android/link/SpeechEngine.kt
+cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/link/AsrRescore.kt \
+      "$DST"/app/src/main/java/org/fcitx/fcitx5/android/link/AsrRescore.kt
+cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/link/LlmEngine.kt \
+      "$DST"/app/src/main/java/org/fcitx/fcitx5/android/link/LlmEngine.kt
+cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/link/LlmEngineController.kt \
+      "$DST"/app/src/main/java/org/fcitx/fcitx5/android/link/LlmEngineController.kt
 cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/input/FcitxInputMethodService.kt \
       "$DST"/app/src/main/java/org/fcitx/fcitx5/android/input/FcitxInputMethodService.kt
 cp -f "$SRC"/app/src/main/java/org/fcitx/fcitx5/android/ui/main/settings/SettingsRoute.kt \

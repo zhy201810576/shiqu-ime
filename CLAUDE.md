@@ -28,7 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | JSON | kotlinx.serialization（已从 org.json 统一迁移） |
 | 加密 | Android Keystore AES/GCM（存储 API Key） |
 | 手写 | ML Kit Digital Ink（多语言） |
-| 语音 | sherpa-onnx + Silero VAD（进程内 / 隐形桥） |
+| 语音 | sherpa-onnx + Silero VAD + 端侧 LLM 纠错（进程内） |
 | 原生 | fcitx5 C++ 引擎 + 各 addon（需 NDK 编译） |
 
 **构建必须在 WSL2 / Linux 下进行**（C++ 源码编译）。Windows 侧只做源码查看与 git 操作。
@@ -41,7 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # 前置：WSL 内需 JDK 21、Android SDK（NDK 28.0.13004108 / CMake 3.31.6 / platform-36 / build-tools 36.x）
 # 额外系统依赖：extra-cmake-modules gettext pkg-config
 cd fcitx5-android
-bash download-models.sh   # 首次构建前必做：下载语音模型 + 万象词库（约 1.2GB，未进 git）
+bash download-models.sh   # 首次构建前必做：下载语音模型 + 万象词库 + LLM 纠错模型（约 2.3GB，未进 git）
 ./gradlew :app:assembleDebug -PbuildABI=x86_64   # 模拟器 x86_64；真机换 arm64-v8a
 # 产物：app/build/outputs/apk/debug/org.fcitx.fcitx5.android-*-x86_64-debug.apk
 ```
@@ -99,7 +99,7 @@ IME 入口：`app/src/main/java/org/fcitx/fcitx5/android/input/FcitxInputMethodS
 1. **图库发图**：`commitContent` 直发 → 失败剪贴板兜底；长按走 `ACTION_SEND`。跨 App 图片读取用 `FileProvider`（`${applicationId}.memeboard.fileprovider`，`cache-path memeboard/`）授予权限。
 2. **MT Photos API**：JSON 用 `x-api-key` header 鉴权；图片 URL 用 `auth_code` query 鉴权。详见 `docs/api-spec.md`、`docs/mt-openapi.json`。
 3. **手写**：ML Kit Digital Ink 进程内识别（`link/MlKitHandwritingClient.kt` + `input/handwriting/` 覆盖层/书写垫）；候选条为原生绘制（`docs/memeboard-handwriting-native-candidate-bar.md`）。旧的手写桥 `gpen-bridge/` 为独立 APK，已边缘化。
-4. **语音**：sherpa-onnx + Silero VAD 进程内识别（`link/SpeechEngine.kt` + `link/AsrEngineController.kt`，VAD 门控 + 整段识别）；模型 assets 由 `:plugin:asr` 插件承载（sherpa-onnx paraformer-zh + `silero_vad.onnx`），固定从 assets 加载、无运行时在线下载。识别结果经 `link/AsrRescore.kt` 做语言模型重打分纠错：汉字→无调拼音（撇号分隔，`assets/memeboard/pinyin-table.txt`，生成脚本 `tools/gen-pinyin-table.py`）→ JNI `decodePinyin`（native-lib.cpp，复用 libime `PinyinIME` + 内置 `zh_CN.lm`/`sc.dict`）整句解码消歧同音字（如「睡觉/水饺」）。两个关键设计：① 结合上下文——上屏前读 `getTextBeforeCursor` 取光标前文字，经 `setContextWords` 作为解码语境；② 防过度纠错——`setNBest(10)` 取 top-N 候选，若识别原文在候选里则原样保留，避免把合理的「你说是吧」改成更常见的「你说十八」。已知局限：声调级歧义无解（「是吧/十八」同音不同调，无调拼音分不开），需 Paraformer 声调输出才能解决。历史「隐形桥」方案见 `docs/memeboard-sherpaonnx-vad-experience.md`、`docs/语音输入-asr-bridge隐形桥.md`。
+4. **语音**：sherpa-onnx + Silero VAD 进程内识别（`link/SpeechEngine.kt` + `link/AsrEngineController.kt`，VAD 门控 + 整段识别）；模型 assets 由 `:plugin:asr` 插件承载（sherpa-onnx paraformer-zh + `silero_vad.onnx`），固定从 assets 加载、无运行时在线下载。识别结果的同音字纠错分两级：① **默认（端侧 LLM 选择性纠错）**——Qwen2.5-1.5B GGUF（Q4_K_M，由 `:plugin:llm` 插件承载，首载一次性拷贝到 filesDir）经 llama.cpp 推理（`link/LlmEngine.kt` + `link/LlmEngineController.kt` + native-lib.cpp 的 `nativeLoad/nativeGenerate`，llama.cpp 为 git 子模块，pin b9999）；用 ChatML 约束 prompt「只改同音/近音错字、保持原意、不增删」+ 前文语境（`getTextBeforeCursor`）+ 编辑距离安全门控（`AsrRescore.acceptCorrection`），只改明显错字、不整句重写；② **旧方案（libime pinyin round-trip，默认关）**——汉字→无调拼音（`AsrRescore.toPinyin`）→ JNI `decodePinyin`（复用 libime `PinyinIME`），经真机验证会过度纠错（把「你说是吧」改成「你说十八」），已边缘化仅作对比。已知局限：声调级歧义无解（「是吧/十八」同音不同调），LLM 与无调拼音都分不开，需 Paraformer 声调输出才能解决。历史「隐形桥」方案见 `docs/memeboard-sherpaonnx-vad-experience.md`、`docs/语音输入-asr-bridge隐形桥.md`。
 5. **颜文字**：`input/picker/` 分类标签栏滑动 + 跨 Activity 搜索上屏（`docs/memeboard-kaomoji-toolbar-search-experience.md`）。
 6. **主题**：fcitx5 主题设计（`docs/memeboard-fcitx5-theme-design-experience.md`；Compose 侧主题见 skill `styles`）。
 

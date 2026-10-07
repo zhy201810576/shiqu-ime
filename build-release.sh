@@ -113,6 +113,26 @@ cp -f "$SRC"/plugin/asr/src/main/assets/descriptor.json           "$DST"/plugin/
 mkdir -p "$DST"/plugin/asr/src/main/assets
 rsync -a "$SRC"/plugin/asr/src/main/assets/sherpa-onnx-paraformer-zh-2024-03-09/ "$DST"/plugin/asr/src/main/assets/sherpa-onnx-paraformer-zh-2024-03-09/
 
+# llm 大模型插件（端侧纠错 Qwen2.5-1.5B GGUF；模型用 rsync 增量同步）
+mkdir -p "$DST"/plugin/llm/src/main/res/xml
+mkdir -p "$DST"/plugin/llm/src/main/res/values
+mkdir -p "$DST"/plugin/llm/src/main/res/values-zh-rCN
+mkdir -p "$DST"/plugin/llm/src/main/assets/llm
+cp -f "$SRC"/plugin/llm/build.gradle.kts                          "$DST"/plugin/llm/build.gradle.kts
+cp -f "$SRC"/plugin/llm/proguard-rules.pro                        "$DST"/plugin/llm/proguard-rules.pro
+cp -f "$SRC"/plugin/llm/src/main/AndroidManifest.xml              "$DST"/plugin/llm/src/main/AndroidManifest.xml
+cp -f "$SRC"/plugin/llm/src/main/res/xml/plugin.xml               "$DST"/plugin/llm/src/main/res/xml/plugin.xml
+cp -f "$SRC"/plugin/llm/src/main/res/values/strings.xml           "$DST"/plugin/llm/src/main/res/values/strings.xml
+cp -f "$SRC"/plugin/llm/src/main/res/values-zh-rCN/strings.xml    "$DST"/plugin/llm/src/main/res/values-zh-rCN/strings.xml
+cp -f "$SRC"/plugin/llm/src/main/assets/descriptor.json           "$DST"/plugin/llm/src/main/assets/descriptor.json
+if [ -d "$SRC"/plugin/llm/src/main/assets/llm ]; then
+  rsync -a "$SRC"/plugin/llm/src/main/assets/llm/ "$DST"/plugin/llm/src/main/assets/llm/
+fi
+
+# llama.cpp（端侧 LLM 推理引擎，git 子模块；rsync 增量同步到工作副本）
+mkdir -p "$DST"/llama.cpp
+rsync -a "$SRC"/llama.cpp/ "$DST"/llama.cpp/
+
 # 应用图标：桥接入口剪影 + 贴纸风 launcher（含删除 adaptive XML 回退 legacy PNG）
 for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
   mkdir -p "$DST"/app/src/main/res/drawable-"$d"
@@ -151,7 +171,7 @@ echo "=== [3/4] assembleRelease ABI=$ABI ==="
 cd "$DST"
 # 给 JVM 设 socket 超时：新增依赖后 aboutlibraries 会联网下载 SPDX license 定义，
 # 网络不通时会永久阻塞，设超时让它快速失败后跳过，构建继续。
-/opt/gradle-9.6.1/bin/gradle :app:assembleRelease :plugin:rime:assembleRelease :plugin:asr:assembleRelease -PbuildABI="$ABI" --console=plain --no-daemon \
+/opt/gradle-9.6.1/bin/gradle :app:assembleRelease :plugin:rime:assembleRelease :plugin:asr:assembleRelease :plugin:llm:assembleRelease -PbuildABI="$ABI" --console=plain --no-daemon \
   -Dsun.net.client.defaultConnectTimeout=10000 \
   -Dsun.net.client.defaultReadTimeout=15000
 echo "=== gradle exit: $? ==="
@@ -160,3 +180,4 @@ echo "=== [4/4] 产物 ==="
 ls -la "$DST"/app/build/outputs/apk/release/ 2>/dev/null || echo "无主程序 release 产物"
 ls -la "$DST"/plugin/rime/build/outputs/apk/release/ 2>/dev/null || echo "无 rime 插件 release 产物"
 ls -la "$DST"/plugin/asr/build/outputs/apk/release/ 2>/dev/null || echo "无 asr 插件 release 产物"
+ls -la "$DST"/plugin/llm/build/outputs/apk/release/ 2>/dev/null || echo "无 llm 插件 release 产物"
