@@ -28,7 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | JSON | kotlinx.serialization（已从 org.json 统一迁移） |
 | 加密 | Android Keystore AES/GCM（存储 API Key） |
 | 手写 | ML Kit Digital Ink（多语言） |
-| 语音 | sherpa-onnx + Silero VAD + 端侧 LLM 纠错（进程内） |
+| 语音 | sherpa-onnx + Silero VAD + 端侧 CSC 纠错 + 数字归一化（进程内） |
 | 原生 | fcitx5 C++ 引擎 + 各 addon（需 NDK 编译） |
 
 **构建必须在 WSL2 / Linux 下进行**（C++ 源码编译）。Windows 侧只做源码查看与 git 操作。
@@ -41,7 +41,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # 前置：WSL 内需 JDK 21、Android SDK（NDK 28.0.13004108 / CMake 3.31.6 / platform-36 / build-tools 36.x）
 # 额外系统依赖：extra-cmake-modules gettext pkg-config
 cd fcitx5-android
-bash download-models.sh   # 首次构建前必做：下载语音模型 + 万象词库 + LLM 纠错模型（约 2.3GB，未进 git）
+bash download-models.sh   # 首次构建前必做：下载语音模型 + 万象词库（未进 git）
 ./gradlew :app:assembleDebug -PbuildABI=x86_64   # 模拟器 x86_64；真机换 arm64-v8a
 # 产物：app/build/outputs/apk/debug/org.fcitx.fcitx5.android-*-x86_64-debug.apk
 ```
@@ -51,7 +51,7 @@ bash download-models.sh   # 首次构建前必做：下载语音模型 + 万象�
 | 脚本 | 用途 |
 | --- | --- |
 | `build-memeboard.sh` | debug 构建（默认 x86_64），构建前同步 memeboard 源码到 `/root` 工作副本 |
-| `build-release.sh` | release 打包：主 app + `:plugin:rime` + `:plugin:asr` 三个 APK，R8/Proguard + 签名 |
+| `build-release.sh` | release 打包：主 app + `:plugin:rime` + `:plugin:asr` + `:plugin:csc`，R8/Proguard + 签名 |
 | `build-bridges-release.sh` | 独立手写桥 `gpen-bridge/` 的 release 打包 |
 | `sync-memeboard.sh` / `sync-kaomoji.sh` | 只同步（不构建）：把 memeboard / 颜文字改动从 Windows 拷到 `/root` 工作副本 |
 
@@ -90,7 +90,7 @@ cd fcitx5-android
 
 IME 入口：`app/src/main/java/org/fcitx/fcitx5/android/input/FcitxInputMethodService.kt`（`commitImage` = commitContent → 剪贴板兜底；`shareImage` = ACTION_SEND 系统分享）。
 
-单元测试（JVM）：`app/src/test/java/org/fcitx/fcitx5/android/` 下 3 个 —— `memeboard/MtPhotosJsonTest.kt`（MT Photos JSON 反序列化）、`StringEscapeTest.kt`、`ThemeSerializationTest.kt`（主题序列化）；运行命令见「三」。
+单元测试（JVM）：`app/src/test/java/org/fcitx/fcitx5/android/` 下 `memeboard/MtPhotosJsonTest.kt`（MT Photos JSON 反序列化）、`StringEscapeTest.kt`、`ThemeSerializationTest.kt`、`link/`（`AsrRescoreTest`、`CnNumberNormalizerTest`、`AsrEvalCollectorTest`、`MacBertTokenizerTest`）；运行命令见「三」。
 
 经验文档（**改动前先读对应文档**）：`docs/` 下 20+ 篇，覆盖图库接入、颜文字工具栏、手写、语音桥、主题设计、ML Kit R8 修复、目标 App 感知分享、签名发布等。
 
@@ -99,7 +99,7 @@ IME 入口：`app/src/main/java/org/fcitx/fcitx5/android/input/FcitxInputMethodS
 1. **图库发图**：`commitContent` 直发 → 失败剪贴板兜底；长按走 `ACTION_SEND`。跨 App 图片读取用 `FileProvider`（`${applicationId}.memeboard.fileprovider`，`cache-path memeboard/`）授予权限。
 2. **MT Photos API**：JSON 用 `x-api-key` header 鉴权；图片 URL 用 `auth_code` query 鉴权。详见 `docs/api-spec.md`、`docs/mt-openapi.json`。
 3. **手写**：ML Kit Digital Ink 进程内识别（`link/MlKitHandwritingClient.kt` + `input/handwriting/` 覆盖层/书写垫）；候选条为原生绘制（`docs/memeboard-handwriting-native-candidate-bar.md`）。旧的手写桥 `gpen-bridge/` 为独立 APK，已边缘化。
-4. **语音**：sherpa-onnx + Silero VAD 进程内识别（`link/SpeechEngine.kt` + `link/AsrEngineController.kt`，VAD 门控 + 整段识别）；模型 assets 由 `:plugin:asr` 插件承载（sherpa-onnx paraformer-zh + `silero_vad.onnx`），固定从 assets 加载、无运行时在线下载。识别结果的同音字纠错分两级：① **默认（端侧 LLM 选择性纠错）**——Qwen2.5-1.5B GGUF（Q4_K_M，由 `:plugin:llm` 插件承载，首载一次性拷贝到 filesDir）经 llama.cpp 推理（`link/LlmEngine.kt` + `link/LlmEngineController.kt` + native-lib.cpp 的 `nativeLoad/nativeGenerate`，llama.cpp 为 git 子模块，pin b9999）；用 ChatML 约束 prompt「只改同音/近音错字、保持原意、不增删」+ 前文语境（`getTextBeforeCursor`）+ 编辑距离安全门控（`AsrRescore.acceptCorrection`），只改明显错字、不整句重写；② **旧方案（libime pinyin round-trip，默认关）**——汉字→无调拼音（`AsrRescore.toPinyin`）→ JNI `decodePinyin`（复用 libime `PinyinIME`），经真机验证会过度纠错（把「你说是吧」改成「你说十八」），已边缘化仅作对比。已知局限：声调级歧义无解（「是吧/十八」同音不同调），LLM 与无调拼音都分不开，需 Paraformer 声调输出才能解决。历史「隐形桥」方案见 `docs/memeboard-sherpaonnx-vad-experience.md`、`docs/语音输入-asr-bridge隐形桥.md`。
+4. **语音**：sherpa-onnx + Silero VAD 进程内识别（`link/SpeechEngine.kt` + `link/AsrEngineController.kt`，VAD 门控 + 整段识别）；模型 assets 由 `:plugin:asr` 插件承载（sherpa-onnx paraformer-zh + `silero_vad.onnx`），固定从 assets 加载、无运行时在线下载。识别结果的同音字纠错分两级：① **默认（端侧 CSC，MacBERT4CSC）**——INT8 ONNX 等长逐字替换（`link/MacBert4CscEngine.kt` + `link/MacBert4CscController.kt` + `link/MacBertTokenizer.kt`，模型由 `:plugin:csc` 插件承载），只改明显同音/近音错字、低置信不改；② **旧方案（libime pinyin round-trip，默认关）**——汉字→无调拼音（`AsrRescore.toPinyin`）→ JNI `decodePinyin`（复用 libime `PinyinIME`），经真机验证会过度纠错（把「你说是吧」改成「你说十八」），已边缘化仅作对比。上屏前再经 `link/CnNumberNormalizer.kt` 把中文数字归一化为阿拉伯数字（「二零二六年十月八号」→「2026年10月8号」）。已知局限：声调级歧义无解（「是吧/十八」同音不同调），需 Paraformer 声调输出才能解决。历史「隐形桥」方案见 `docs/memeboard-sherpaonnx-vad-experience.md`、`docs/语音输入-asr-bridge隐形桥.md`。
 5. **颜文字**：`input/picker/` 分类标签栏滑动 + 跨 Activity 搜索上屏（`docs/memeboard-kaomoji-toolbar-search-experience.md`）。
 6. **主题**：fcitx5 主题设计（`docs/memeboard-fcitx5-theme-design-experience.md`；Compose 侧主题见 skill `styles`）。
 
@@ -127,6 +127,7 @@ IME 入口：`app/src/main/java/org/fcitx/fcitx5/android/input/FcitxInputMethodS
 6. **首次构建**：必须先 `bash download-models.sh`，否则语音/词库缺失。
 7. **aboutlibraries 卡死**：新增依赖后 aboutlibraries 会联网下载 SPDX license 定义，网络不通会永久阻塞构建；构建脚本已加 `-Dsun.net.client.defaultConnectTimeout=10000 -Dsun.net.client.defaultReadTimeout=15000` 让其快速失败跳过，勿删除。
 8. **发图兜底**：任何发图路径都要有剪贴板兜底，不能假定目标 App 支持 `commitContent`。
+9. **minSdk**：固定为 28（`build-logic/convention/src/main/kotlin/Versions.kt`）。历史原因是 llama.cpp Vulkan（已移除），暂保持不回退。
 
 ## 八、开发规范
 
